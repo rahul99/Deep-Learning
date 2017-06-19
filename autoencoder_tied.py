@@ -11,7 +11,7 @@ mean_img = np.mean(mnist.train.images, axis=0)
 # Define a session to use across multiple computational graphs
 sess = tf.Session()
 
-# Fetch a subset of the data in order to counte the limitation of compute resources
+# Fetch a subset of the data in order to counter the limitation of compute resources
 def get_train_data(size):
 	train_data = mnist.train.images[:size,:]
 	print("train data description: " + str(train_data.shape))
