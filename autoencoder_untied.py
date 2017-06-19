@@ -107,7 +107,7 @@ def denoising_ae():
 	sess.run(tf.global_variables_initializer())
 
 	# Fit all training data 
-	batch_size = 100
+	batch_size = 20
 	n_epochs = 2000
 	loss_per_epoch = []
 	for epoch_i in range(n_epochs):
