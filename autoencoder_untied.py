@@ -4,7 +4,7 @@ import math
 import matplotlib.pyplot as plt
 import tensorflow.examples.tutorials.mnist.input_data as input_data
 
-# load MNIST as before
+# load MNIST data
 mnist = input_data.read_data_sets('MNIST_data', one_hot=True)
 mean_img = np.mean(mnist.train.images, axis=0)
 
