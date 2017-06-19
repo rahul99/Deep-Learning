@@ -50,7 +50,6 @@ def get_noisy_data(x, noise_factor):
 	'''
 	full_noise = tf.random_uniform(shape=tf.shape(x), dtype=tf.float32)
 	factored_noise = tf.multiply(full_noise, tf.cast(noise_factor, tf.float32))
-	#return x*factored_noise + x*(1 - noise_factor)
 	return tf.add(x, factored_noise)
 
 def denoising_ae():
@@ -68,7 +67,7 @@ def denoising_ae():
 	'''
 
 	# Input to the autoencoder
-	dim_of_layer=[784, 512, 256, 64]
+	dim_of_layer=[784, 392, 196]
 	x = tf.placeholder(tf.float32, shape=[None, dim_of_layer[0]])
 	noise_factor = tf.placeholder(tf.float32, [1])
 	noisy_input = get_noisy_data(x, noise_factor)
