@@ -11,6 +11,33 @@ mean_img = np.mean(mnist.train.images, axis=0)
 # Define a session to use across multiple computational graphs
 sess = tf.Session()
 
+# Fetch a subset of the data in order to counte the limitation of compute resources
+def get_train_data(size):
+	train_data = mnist.train.images[:size,:]
+	print("train data description: " + str(train_data.shape))
+	train_labels = mnist.train.labels[:size,:]
+	print("train labels description: " + str(train_labels.shape))	
+	return train_data, train_labels
+
+def get_test_data(size):
+	test_data = mnist.test.images[:size,:]
+	print("test data description: " + str(test_data.shape))
+	test_labels = mnist.test.labels[:size,:]
+	print("test labels description: " + str(test_data.shape))	
+	return test_data, test_labels
+	
+def get_next_batch(size):
+	# imitating the method described in mnist object to load a random data in batch
+	# count the number of rows in the training data
+	# train_data encapsulates both data [0] and labels [1]
+	index = np.arange(0, train_data[0].shape[0])
+	np.random.shuffle(index)
+	index = index[:size]
+	data_shuffled = np.asmatrix([train_data[0][i] for i in index])
+	labels_shuffled = np.asmatrix([train_data[1][i] for i in index])
+	return data_shuffled, labels_shuffled
+
+
 def get_noisy_data(x, noise_factor):
 	'''
 	Add a Gaussian noise to the data
@@ -23,6 +50,7 @@ def get_noisy_data(x, noise_factor):
 	'''
 	full_noise = tf.random_uniform(shape=tf.shape(x), dtype=tf.float32)
 	factored_noise = tf.multiply(full_noise, tf.cast(noise_factor, tf.float32))
+	#return x*factored_noise + x*(1 - noise_factor)
 	return tf.add(x, factored_noise)
 
 def denoising_ae():
@@ -40,20 +68,19 @@ def denoising_ae():
 	'''
 
 	# Input to the autoencoder
-	dim_of_layer=[784, 392, 196]
+	dim_of_layer=[784, 512, 256, 64]
 	x = tf.placeholder(tf.float32, shape=[None, dim_of_layer[0]])
 	noise_factor = tf.placeholder(tf.float32, [1])
 	noisy_input = get_noisy_data(x, noise_factor)
 
 	# Encoder part: Iterate through all the output layers (except the first layer which is input)
-	encoder = []
 	for layer_index, layer_dim in enumerate(dim_of_layer[1:]):
 		input_dim = int(noisy_input.get_shape()[1])
 		output_dim = layer_dim
-		#W = tf.Variable(tf.zeros([input_dim, output_dim]))		
-		W = tf.Variable(tf.random_uniform([input_dim, output_dim]))
+		W = tf.Variable(tf.random_uniform([input_dim, output_dim],-1.0 / math.sqrt(input_dim),1.0 / math.sqrt(input_dim)))
+
+		#W = tf.Variable(tf.random_uniform([input_dim, output_dim]))
 		b = tf.Variable(tf.zeros([output_dim]))
-		encoder.append([W])
 		activation = tf.nn.tanh(tf.matmul(noisy_input, W) + b)
 		noisy_input = activation
 
@@ -61,11 +88,10 @@ def denoising_ae():
 	y = noisy_input
 
 	# Decoder part: Iterate through all the output layers in REVERSE (except the first layer which is input)
-	encoder.reverse()
 	for layer_index, layer_dim in enumerate(dim_of_layer[::-1][1:]):
 		input_dim = int(noisy_input.get_shape()[1])
 		output_dim = layer_dim
-		W = tf.Variable(tf.random_uniform([input_dim, output_dim]))
+		W = tf.Variable(tf.random_uniform([input_dim, output_dim],-1.0 / math.sqrt(input_dim),1.0 / math.sqrt(input_dim)))
 		b = tf.Variable(tf.zeros([output_dim]))
 		activation = tf.nn.tanh(tf.matmul(noisy_input, W) + b)
 		noisy_input = activation
@@ -82,13 +108,14 @@ def denoising_ae():
 	sess.run(tf.global_variables_initializer())
 
 	# Fit all training data 
-	batch_size = 50
-	n_epochs = 50
+	batch_size = 100
+	n_epochs = 2000
 	loss_per_epoch = []
 	for epoch_i in range(n_epochs):
-		for batch_i in range(mnist.train.num_examples // batch_size):
-			batch_xs, _ = mnist.train.next_batch(batch_size)
-			train = np.array([img - mean_img for img in batch_xs])
+		for batch_i in range(train_data[0].shape[0] // batch_size):
+			batch_input, _ = get_next_batch(batch_size)
+			# introduces extra '1' dimension. Hence squeezing it to maintain dim consistency
+			train = np.squeeze(np.array([img - mean_img for img in batch_input]))
 			sess.run(optimizer, feed_dict={x:train, noise_factor:[1.0]})
 		loss_per_epoch.append(sess.run(loss, feed_dict={x:train, noise_factor:[1.0]}))
 		print(epoch_i, sess.run(loss, feed_dict={x:train, noise_factor:[1.0]}))
@@ -111,7 +138,14 @@ def reconstruct_mnist():
 	plt.draw()
 	plt.waitforbuttonpress()
 
+
 if __name__ == '__main__':
+
+	global train_data;
+	global test_data;
+	train_data = get_train_data(size=5000)
+	test_data = get_test_data(size=5000)
+
 	ae = denoising_ae()
 
 	# Get loss curve
@@ -123,3 +157,4 @@ if __name__ == '__main__':
 
 	# Get sample recontructions
 	reconstruct_mnist()
+
