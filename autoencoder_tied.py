@@ -37,22 +37,7 @@ def get_next_batch(size):
 	labels_shuffled = np.asmatrix([train_data[1][i] for i in index])
 	return data_shuffled, labels_shuffled
 
-
-def get_noisy_data(x, noise_factor):
-	'''
-	Add a Gaussian noise to the data
-	Input:
-	x : input original data
-	noise_factor : self explanatory
-
-	Returns:
-	x + (noise(x)*noise_factor)
-	'''
-	full_noise = tf.random_uniform(shape=tf.shape(x), dtype=tf.float32)
-	factored_noise = tf.multiply(full_noise, tf.cast(noise_factor, tf.float32))
-	return tf.add(x, factored_noise)
-
-def denoising_ae():
+def my_autoencoder():
 	'''
 	Input: 
 	A list whose:
@@ -69,36 +54,35 @@ def denoising_ae():
 	# Input to the autoencoder
 	dim_of_layer=[784, 392, 196]
 	x = tf.placeholder(tf.float32, shape=[None, dim_of_layer[0]])
-	noise_factor = tf.placeholder(tf.float32, [1])
-	noisy_input = get_noisy_data(x, noise_factor)
+	input_data = x
 
 	# Encoder part: Iterate through all the output layers (except the first layer which is input)
 	encoder = []
 	for layer_index, layer_dim in enumerate(dim_of_layer[1:]):
-		input_dim = int(noisy_input.get_shape()[1])
+		input_dim = int(input_data.get_shape()[1])
 		output_dim = layer_dim
 		W = tf.Variable(tf.random_uniform([input_dim, output_dim],-1.0 / math.sqrt(input_dim),1.0 / math.sqrt(input_dim)))
 
 		#W = tf.Variable(tf.random_uniform([input_dim, output_dim]))
 		b = tf.Variable(tf.zeros([output_dim]))
 		encoder.append([W])
-		activation = tf.nn.tanh(tf.matmul(noisy_input, W) + b)
-		noisy_input = activation
+		activation = tf.nn.tanh(tf.matmul(input_data, W) + b)
+		input_data = activation
 
 	# Latent representation at the highest abstraction
-	y = noisy_input
+	y = input_data
 
 	# Decoder part: Iterate through all the output layers in REVERSE (except the first layer which is input)
 	encoder.reverse()
 	for layer_index, layer_dim in enumerate(dim_of_layer[::-1][1:]):
-		input_dim = int(noisy_input.get_shape()[1])
+		input_dim = int(input_data.get_shape()[1])
 		output_dim = layer_dim
 		W = tf.transpose(encoder[layer_index])
 		W = tf.reshape(W, [input_dim, output_dim])
 		b = tf.Variable(tf.zeros([output_dim]))
-		activation = tf.nn.tanh(tf.matmul(noisy_input, W) + b)
-		noisy_input = activation
-	z = noisy_input
+		activation = tf.nn.tanh(tf.matmul(input_data, W) + b)
+		input_data = activation
+	z = input_data
 
 	# RMS loss function
 	loss = tf.sqrt(tf.reduce_mean(tf.square(z - x)))
@@ -120,19 +104,19 @@ def denoising_ae():
 			# introduces extra '1' dimension. Hence squeezing it to maintain dim consistency
 			train = np.squeeze(np.array([img - mean_img for img in batch_input]))
 			sess.run(optimizer, feed_dict={x:train, noise_factor:[1.0]})
-		loss_per_epoch.append(sess.run(loss, feed_dict={x:train, noise_factor:[1.0]}))
-		print(epoch_i, sess.run(loss, feed_dict={x:train, noise_factor:[1.0]}))
+		loss_per_epoch.append(sess.run(loss, feed_dict={x:train}))
+		print(epoch_i, sess.run(loss, feed_dict={x:train}))
 
 
 	#return(input, most abstracted latent representation, reconstructed input, noise_factor, loss)
-	return {'x': x, 'y': y, 'z': z, 'noise_factor': noise_factor, 'loss': loss_per_epoch}
+	return {'x': x, 'y': y, 'z': z, 'loss': loss_per_epoch}
 
 def reconstruct_mnist():
 	# Plot reconstructed input for MNIST samples
 	mnist_samples = 10
 	testdata, _ = mnist.test.next_batch(mnist_samples)
 	testdata_norm = np.array([img - mean_img for img in testdata])
-	recon = sess.run(ae['z'], feed_dict={ae['x']:testdata_norm, ae['noise_factor']:[0.0]})
+	recon = sess.run(ae['z'], feed_dict={ae['x']:testdata_norm})
 	fig, axis = plt.subplots(2, mnist_samples, figsize=(10, 4))
 	for example_i in range(mnist_samples):
 		axis[0][example_i].imshow(np.reshape(testdata[example_i, :], (28, 28)))
@@ -149,7 +133,7 @@ if __name__ == '__main__':
 	train_data = get_train_data(size=5000)
 	test_data = get_test_data(size=5000)
 
-	ae = denoising_ae()
+	ae = my_autoencoder()
 
 	# Get loss curve
 	print("printing loss curve:")
